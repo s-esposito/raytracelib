@@ -22,12 +22,6 @@ def get_eigen_include():
     TMP_EIGEN_FILE = "tmp_eigen.tar.bz2"
     EIGEN3_DIRNAME = "eigen-3.3.7"
 
-    # eigen_include_dir = os.environ.get("EIGEN3_INCLUDE_DIR", None)
-
-    # if eigen_include_dir is not None:
-    #     print("EIGEN3_INCLUDE_DIR is set: ", eigen_include_dir)
-    #     return eigen_include_dir
-
     target_dir = os.path.join(_src_path, "ext", EIGEN3_DIRNAME)
     if os.path.exists(target_dir):
         return target_dir
@@ -116,11 +110,13 @@ setup(
     cmdclass={
         "build_ext": BuildExtension,
     },
-    setup_requires=[
-        "setuptools",
-        "pybind11[global]",
-    ],
+    setup_requires=["ninja", "setuptools", "pybind11[global]", "torch>=2.1.0"],
     install_requires=[
-        "torch>=2.1.0",
+        "trimesh",
+        "opencv-python",
+        "numpy",
+        "tqdm",
+        "matplotlib",
+        "dearpygui",
     ],
 )
