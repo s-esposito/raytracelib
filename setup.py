@@ -1,5 +1,6 @@
 import os
-import pybind11
+import urllib.request
+import tarfile
 from setuptools import setup
 
 try:
@@ -15,6 +16,38 @@ if shutil.which("nvcc") is None:
 _src_path = os.path.dirname(os.path.abspath(__file__))
 
 
+def get_pybind11_include():
+    PYBIND11_WEB_URL = "https://github.com/pybind/pybind11/archive/refs/tags/v2.11.0.tar.gz"
+    TMP_PYBIND11_FILE = "tmp_pybind11.tar.gz"
+    PYBIND11_DIRNAME = "pybind11-2.11.0"
+
+    target_dir = os.path.join(_src_path, "ext", PYBIND11_DIRNAME)
+    if os.path.exists(target_dir):
+        return target_dir
+    else:
+        print("Couldn't find pybind11 locally, downloading...")
+        req = urllib.request.Request(
+            PYBIND11_WEB_URL,
+            data=None,
+            headers={
+                "User-Agent": "Mozilla/5.0"
+            },
+        )
+
+        ext_dir = os.path.join(_src_path, "ext")
+        os.makedirs(ext_dir, exist_ok=True)
+
+        pybind11_archive_path = os.path.join(ext_dir, TMP_PYBIND11_FILE)
+        with urllib.request.urlopen(req) as resp, open(pybind11_archive_path, "wb") as file:
+            file.write(resp.read())
+
+        with tarfile.open(pybind11_archive_path) as tar:
+            tar.extractall(path=ext_dir)
+
+        os.remove(pybind11_archive_path)
+        return target_dir
+
+
 def get_eigen_include():
     EIGEN_WEB_URL = (
         "https://gitlab.com/libeigen/eigen/-/archive/3.3.7/eigen-3.3.7.tar.bz2"
@@ -26,34 +59,26 @@ def get_eigen_include():
     if os.path.exists(target_dir):
         return target_dir
     else:
-        import urllib.request
-
         print("Couldn't find Eigen locally, downloading...")
         req = urllib.request.Request(
             EIGEN_WEB_URL,
             data=None,
             headers={
-                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.135 Safari/537.36"
+                "User-Agent": "Mozilla/5.0"
             },
         )
 
-        # make ext dir
-        if not os.path.exists(os.path.join(_src_path, "ext")):
-            os.mkdir(os.path.join(_src_path, "ext"))
+        ext_dir = os.path.join(_src_path, "ext")
+        os.makedirs(ext_dir, exist_ok=True)
 
-        with urllib.request.urlopen(req) as resp, open(
-            os.path.join(_src_path, "ext", TMP_EIGEN_FILE), "wb"
-        ) as file:
-            data = resp.read()
-            file.write(data)
-        import tarfile
+        eigen_archive_path = os.path.join(ext_dir, TMP_EIGEN_FILE)
+        with urllib.request.urlopen(req) as resp, open(eigen_archive_path, "wb") as file:
+            file.write(resp.read())
 
-        tar = tarfile.open(os.path.join(_src_path, "ext", TMP_EIGEN_FILE))
-        tar.extractall(path=os.path.join(_src_path, "ext"))
-        tar.close()
+        with tarfile.open(eigen_archive_path) as tar:
+            tar.extractall(path=ext_dir)
 
-        os.remove(os.path.join(_src_path, "ext", TMP_EIGEN_FILE))
-
+        os.remove(eigen_archive_path)
         return target_dir
 
 
@@ -90,7 +115,6 @@ setup(
             sources=[
                 os.path.join(_src_path, "src", f)
                 for f in [
-                    # "sphere.cu",
                     "bvh.cu",
                     "raytracer.cu",
                     "bindings.cpp",
@@ -99,7 +123,7 @@ setup(
             include_dirs=[
                 os.path.join(_src_path, "include"),
                 get_eigen_include(),
-                pybind11.get_include(),
+                get_pybind11_include(),
             ],
             extra_compile_args={
                 "cxx": c_flags,
@@ -110,8 +134,11 @@ setup(
     cmdclass={
         "build_ext": BuildExtension,
     },
-    setup_requires=["ninja", "setuptools", "pybind11[global]", "torch>=2.1.0"],
+    setup_requires=[
+        "setuptools",
+    ],
     install_requires=[
+        "torch>=2.1.0",
         "trimesh",
         "opencv-python",
         "numpy",
